@@ -6,10 +6,13 @@ import boto3
 import json
 import sqlalchemy
 from sqlalchemy import text
+#import fastapi
+#import uvicorn
 
 
 random.seed(100)
 
+#api = fastapi.FastAPI()
 
 class AWSDBConnector:
 
@@ -28,7 +31,7 @@ class AWSDBConnector:
 
 new_connector = AWSDBConnector()
 
-
+#@api.post('/test')
 def run_infinite_post_data_loop():
     while True:
         sleep(random.randrange(0, 2))

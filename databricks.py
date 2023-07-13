@@ -73,3 +73,61 @@ df_user = spark.read.format(file_type) \
 .load(file_location_user)
 # Display Spark dataframe to check its content
 display(df_user)
+
+
+#Cleaning df_pin 
+df_pin = df_pin.withColumn('description', when ((col('description') == 'No description available Story format') | (col('description') == ''), None).otherwise(col('description')))
+df_pin = df_pin.withColumn('follower_count', when ((col('follower_count') == 'User Info Error') | (col('description') == ''), None).otherwise(col('follower_count')))
+df_pin = df_pin.withColumn('image_src', when ((col('image_src') == 'Image src error.') | (col('description') == ''), None).otherwise(col('image_src')))
+df_pin = df_pin.withColumn('poster_name', when ((col('poster_name') == 'User Info Error') | (col('poster_name') == ''), None).otherwise(col('poster_name')))
+df_pin = df_pin.withColumn('tag_list', when ((col('tag_list') == 'N,o, ,T,a,g,s, ,A,v,a,i,l,a,b,l,e') | (col('tag_list') == ''), None).otherwise(col('tag_list')))
+df_pin = df_pin.withColumn('title', when ((col('title') == 'No Title Data Available') | (col('title') == ''), None).otherwise(col('title')))
+
+#transform follower_count column to ensure there are no letters, and convert to an integer
+#df_pin.select("follower_count").show(30)
+
+def standardize_follower_count(follower_count):
+    if not follower_count:
+        return follower_count
+    elif follower_count[-1] == 'k':
+        follower_count = follower_count[:-1] + '000'
+    elif follower_count[-1] == 'M':
+        follower_count = follower_count[:-1] + '000000'
+    return follower_count
+    
+#print(df_pin.schema["follower_count"].dataType)
+
+#apply function and convert to integer
+from pyspark.sql.types import StringType, IntegerType
+
+standardize_follower_count_UDF = udf(lambda x:standardize_follower_count(x)) 
+df_pin = df_pin.withColumn('follower_count', standardize_follower_count_UDF(col('follower_count')))
+df_pin = df_pin.withColumn('follower_count', col('follower_count').cast(IntegerType()))
+#df_pin.display()
+
+#confirm this has worked - should return IntegerType
+#print(df_pin.schema["follower_count"].dataType)
+
+#ensure relevant columns are integers
+df_pin = df_pin.withColumn("downloaded", col("downloaded").cast("integer"))
+df_pin = df_pin.withColumn("index", col("index").cast("integer"))
+
+#ensure save_location only has file path
+df_pin = df_pin.withColumn('save_location', regexp_replace(col('save_location'), 'Local save in ', ''))
+
+#change index column to ind
+df_pin = df_pin.withColumnRenamed("index","ind")
+
+#reorder columns
+df_pin = df_pin.select('ind',
+                       'unique_id',
+                       'title',
+                       'description',
+                       'follower_count',
+                       'poster_name',
+                       'tag_list',
+                       'is_image_or_video',
+                       'image_src',
+                       'save_location',
+                       'category'
+                       )

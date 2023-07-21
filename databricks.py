@@ -75,7 +75,7 @@ df_user = spark.read.format(file_type) \
 display(df_user)
 
 
-#Cleaning df_pin 
+#Task 1: Cleaning df_pin 
 df_pin = df_pin.withColumn('description', when ((col('description') == 'No description available Story format') | (col('description') == ''), None).otherwise(col('description')))
 df_pin = df_pin.withColumn('follower_count', when ((col('follower_count') == 'User Info Error') | (col('description') == ''), None).otherwise(col('follower_count')))
 df_pin = df_pin.withColumn('image_src', when ((col('image_src') == 'Image src error.') | (col('description') == ''), None).otherwise(col('image_src')))
@@ -131,3 +131,132 @@ df_pin = df_pin.select('ind',
                        'save_location',
                        'category'
                        )
+
+#Task 2: clean the df_geo
+df_geo = df_geo.withColumn('coordinates', array('longitude', 'latitude'))
+df_geo = df_geo.drop('longitude', 'latitude')
+df_geo = df_geo.withColumn("timestamp",to_timestamp("timestamp"))
+
+#print(df_geo.schema["timestamp"].dataType)
+
+df_geo = df_geo.select('ind',
+                       'country',
+                       'coordinates',
+                       'timestamp'
+                       )
+#df_geo.display()
+
+#Task 3: Clean the user_df
+df_user = df_user.withColumn(('user_name'), concat_ws(' ', 'first_name', 'last_name'))
+df_user = df_user.drop('first_name', 'last_name')
+df_user = df_user.withColumn('date_joined', to_timestamp('date_joined'))
+#print(df_user.schema["date_joined"].dataType)
+
+df_user = df_user.select('ind',
+                         'user_name',
+                         'age',
+                         'date_joined'
+                        )
+#df_user.display()
+
+#Create temp df's
+df_geo.createOrReplaceTempView('countries')
+df_pin.createOrReplaceTempView('posts')
+
+#Task 4: Find the most popular category in each country
+popular_category_by_country = spark.sql("""SELECT countries.country, posts.category, COUNT(*) AS category_count
+                                  FROM countries JOIN posts ON countries.ind = posts.ind
+                                  GROUP BY country, category
+                                  ORDER BY category_count DESC""")
+
+#popular_category_by_country.display()
+
+#Task 5: Find how many posts each category had between the years or 2018 and 2022
+popular_category_by_year = spark.sql("""SELECT year(countries.timestamp) AS post_year, category, COUNT(*) as category_count 
+                                     FROM countries
+                                     JOIN posts ON countries.ind = posts.ind
+                                     WHERE (year(countries.timestamp) >= 2018 AND year(countries.timestamp) <= 2022)
+                                     GROUP BY post_year, category
+                                     ORDER BY post_year, category_count""")
+
+#popular_category_by_year.display()
+
+#Task 6: Find user with most followers in each country
+df_user.createOrReplaceTempView('usernames')
+#Step 1: for each country, find the user with the most followers
+user_with_most_followers_per_country = spark.sql("""SELECT country, user_name AS poster_name, follower_count
+                                                FROM countries 
+                                                JOIN posts ON countries.ind = posts.ind
+                                                JOIN usernames ON countries.ind = usernames.ind""")
+                        
+user_with_most_followers_per_country.display()
+
+#Step 2: based on the above, find the country with the user with the most followers
+country_with_user_with_most_followers = spark.sql("""SELECT country, MAX(follower_count) AS follower_count
+                                                  FROM countries 
+                                                  JOIN posts ON countries.ind = posts.ind
+                                                  JOIN usernames ON countries.ind = usernames.ind
+                                                  GROUP BY posts.follower_count, usernames.user_name, countries.country
+                                                  ORDER BY follower_count DESC
+                                                  LIMIT 1""")
+                                                
+#country_with_user_with_most_followers.display()
+
+#Task 7: Most popular category based on age groups; 18-24, 25-35, 36-50, 50+
+aged_based_popular_category = spark.sql("""WITH user_age_range AS (SELECT ind,
+                                        CASE 
+                                            WHEN age BETWEEN 18 AND 24 THEN '18-24' 
+                                            WHEN age BETWEEN 25 AND 35 THEN '25-35' 
+                                            WHEN age BETWEEN 36 AND 50 THEN '36-50' 
+                                            ELSE '50+' 
+                                        END AS age_group
+                                        FROM usernames),
+                                        
+                                        joined_data AS (SELECT user_age_range.age_group, posts.category FROM user_age_range 
+                                        JOIN posts ON user_age_range.ind = posts.ind), 
+                                        
+                                        category_count AS (SELECT age_group, category, COUNT(*) AS category_count 
+                                        FROM joined_data GROUP BY age_group, category) 
+                                        SELECT age_group, category, category_count 
+                                        FROM (SELECT *, ROW_NUMBER() OVER (PARTITION BY age_group ORDER BY category_count DESC) 
+                                        AS rank FROM category_count) ranked_data WHERE rank = 1""")
+                                        
+                               
+#aged_based_popular_category.display()
+#figure out better way to do this
+
+#Task 8: Median follower count for users in age groups 18024, 25-35, 36-50, 50+
+newDF = df_user.join(df_pin, df_user.ind == df_pin.ind)
+newDF = newDF.withColumn(
+    "age_group",
+    when((newDF["age"] >= 18) & (newDF["age"] <= 24), "18-24")
+    .when((newDF["age"] >= 25) & (newDF["age"] <= 35), "25-35")
+    .when((newDF["age"] >= 36) & (newDF["age"] <= 50), "36-50")
+    .otherwise("50+")
+)
+task_8 = newDF.groupBy("age_group").agg(percentile_approx("follower_count", 0.5).alias("median_follower_count"))
+
+#task_8.show()
+
+#Task 9: How many users have joined each year (2015 and 2020) -> return post_year and number_users_joined
+
+quantity_users = spark.sql("""SELECT year(usernames.date_joined) AS post_year, COUNT(*) AS number_users_joined 
+                           FROM usernames
+                           WHERE year(usernames.date_joined) BETWEEN 2015 AND 2020
+                           GROUP BY post_year""")
+
+#quantity_users.display()
+
+#Task 10: Find median follower count based on joining year (between 2015 and 2020) -> return post_year and median_follower_count
+
+users_pin_df = df_user.join(df_pin, df_user.ind == df_pin.ind).filter(year(users_pin_df["date_joined"]) >= 2015).filter(year(users_pin_df["date_joined"]) <= 2020)
+
+median_followers = users_pin_df.groupBy(year('date_joined')).agg(percentile_approx('follower_count', 0.5))
+
+#median_followers.show()
+
+#Task 11: Median follower count of users based on their joining year and age -> return age_group, post_year, median_follower_count
+
+median_follower_age_datejoined = users_pin_df.groupBy("age", year("date_joined")).agg(percentile_approx("follower_count", 0.5)).sort("age")
+
+#median_follower_age_datejoined.show()

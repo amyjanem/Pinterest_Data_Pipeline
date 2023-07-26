@@ -62,7 +62,7 @@ def run_infinite_post_data_loop():
             # Sending post data stream to the API
             # invoke url for one record, if you want to put more records replace record with records
             invoke_url =  'https://rryghwc4f6.execute-api.us-east-1.amazonaws.com/test/streams/streaming-1282968b0e7f-pin/record'
-
+                            
             #To send JSON messages you need to follow this structure
             payload = json.dumps({
                 "stream-name": "YourStreamName",
@@ -74,12 +74,13 @@ def run_infinite_post_data_loop():
 
             headers = {'Content-Type': 'application/json'}
             response = requests.request("PUT", invoke_url, headers=headers, data=payload)
+            print('\npin status code below:')
             print(response.status_code)
             print(response.text)
 
 
             # Sending geolocation data stream to the API
-            invoke_url = "https://gw5okk6hgh.execute-api.us-east-1.amazonaws.com/test/streams/streaming-12cc24ac7551-geo/record"
+            invoke_url = "https://rryghwc4f6.execute-api.us-east-1.amazonaws.com/test/streams/streaming-1282968b0e7f-geo/record"
 
             payload = json.dumps({
                 "StreamName": "YourStreamName",
@@ -91,12 +92,13 @@ def run_infinite_post_data_loop():
 
             headers = {'Content-Type': 'application/json'}
             response = requests.request("PUT", invoke_url, headers=headers, data=payload)
-            # print(response.status_code)
-            # print(response.text)
+            print('\ngeo status code below:')
+            print(response.status_code)
+            print(response.text)
             
             
             # Sending user data stream to the API
-            invoke_url = "https://gw5okk6hgh.execute-api.us-east-1.amazonaws.com/test/streams/streaming-12cc24ac7551-user/record"
+            invoke_url = "https://rryghwc4f6.execute-api.us-east-1.amazonaws.com/test/streams/streaming-1282968b0e7f-user/record"
 
             payload = json.dumps({
                 "StreamName": "YourStreamName",
@@ -108,8 +110,9 @@ def run_infinite_post_data_loop():
 
             headers = {'Content-Type': 'application/json'}
             response = requests.request("PUT", invoke_url, headers=headers, data=payload)
-            # print(response.status_code)
-            # print(response.text)
+            print('\nuser status code below:')
+            print(response.status_code)
+            print(response.text)
 
 
 

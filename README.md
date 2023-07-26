@@ -50,3 +50,19 @@ The technologies that were be used are the following: Kafka, FastAPI, Spark, Spa
 - Find which was the most popular category of each year
 - Find the user with the most followers in each country
 - Find the most popular category for each age group
+- Find the median follower for different age groups
+- Find how many users have joined each year
+- Find the median follower count of users based on their joining year
+- Find the median follower count of users based on their joining year and age group
+
+**<ins>Milestone 7: Batch Processing - AWS MWAA**
+- Create and upload a DAG to a MWAA environment
+- Trigger a DAG that runs a Databricks Notebook
+
+**<ins>Milestone 7: Stream Processing - AWS Kinesis**
+- Create data streams using Kinesis Data Streams
+- Configure an API with a Kinesis proxy integration
+- Send data to the Kinesis streams
+- Read data from the Kinesis streams in Databricks
+- Transform Kinesis streams in Databricks
+- Write the streaming data to Delta tables
